@@ -89,13 +89,13 @@
 
     <script>
         let currentType = '支出'; // 默认支出模式
-        let records = JSON.parse(localStorage.getItem('flash_finance_records_v2')) || [];
+        let records = JSON.parse(localStorage.getItem('flash_finance_records_v3')) || [];
         let myChart = null;
 
-        // 收支各自的分类
+        // 收支各自的分类（这里已经为您加上了 🎁 奖金 选项）
         const categories = {
             '支出': ['🍔 餐饮', '🚗 交通', '🛍️ 购物', '🎮 娱乐', '🏠 居家', '📦 其他'],
-            '收入': ['💰 工资', '📈 投资', '📱 兼职', '🧧 红包', '♻️ 其他']
+            '收入': ['💰 工资', '🎁 奖金', '📈 投资', '📱 兼职', '🧧 红包', '♻️ 其他']
         };
 
         function changeType(type) {
@@ -141,7 +141,7 @@
             };
 
             records.unshift(newRecord);
-            localStorage.setItem('flash_finance_records_v2', JSON.stringify(records));
+            localStorage.setItem('flash_finance_records_v3', JSON.stringify(records));
             
             amountInput.value = '';
             amountInput.blur();
@@ -187,7 +187,6 @@
 
         function renderChart() {
             const chartWrapper = document.getElementById('chartWrapper');
-            // 只过滤当前选择类型的账目生成图表
             const filteredRecords = records.filter(r => r.type === currentType);
             
             if (filteredRecords.length === 0) {
