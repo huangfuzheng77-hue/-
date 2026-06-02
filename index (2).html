@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="闪记">
+    <title>闪记 - 极简记账</title>
+    <!-- 引入 🌲 饼图框架 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #34c759; --bg: #f2f2f7; --card: #ffffff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: var(--bg); color: #000; padding: 20px 16px; padding-top: calc(20px + env(safe-area-inset-top)); }
+        .header { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; text-align: center; }
+        .balance-title { font-size: 14px; color: #8e8e93; margin-bottom: 4px; }
+        .balance-amount { font-size: 32px; font-weight: 700; color: #1c1c1e; }
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        input, select { width: 100%; padding: 14px; border: none; background: var(--card); border-radius: 12px; font-size: 16px; outline: none; }
+        input:focus, select:focus { box-shadow: 0 0 0 2px var(--primary); }
+        .btn-submit { width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(52,199,89,0.3); }
+        .chart-container { background: var(--card); padding: 20px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; }
+        .chart-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; width: 100%; text-align: left; }
+        .history-list { background: var(--card); border-radius: 16px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f2f2f7; }
+        .history-item:last-child { border: none; }
+        .item-left { display: flex; flex-direction: column; }
+        .item-tag { font-size: 16px; font-weight: 500; }
+        .item-date { font-size: 12px; color: #8e8e93; margin-top: 2px; }
+        .item-amount { font-size: 16px; font-weight: 600; color: #ff3b30; }
+        #chartCanvas { max-width: 240px; max-height: 240px; }
+    </style>
+</head>
+<body>
+
+    <!-- 顶栏余额 -->
+    <div class="header">
+        <div class="balance-title">本月总支出 (元)</div>
+        <div class="balance-amount" id="totalExpense">￥0.00</div>
+    </div>
+
+    <!-- 记账表单 -->
+    <div class="grid-inputs">
+        <input type="number" id="amount" placeholder="输入金额 (￥)" step="0.01" inputmode="decimal">
+        <select id="category">
+            <option value="餐饮">🍔 餐饮</option>
+            <option value="交通">🚗 交通</option>
+            <option value="购物">🛍️ 购物</option>
+            <option value="娱乐">🎮 娱乐</option>
+            <option value="居家">🏠 居家</option>
+            <option value="其他">📦 其他</option>
+        </select>
+    </div>
+    <button class="btn-submit" onclick="addRecord()">一键记账</button>
+
+    <!-- 饼图分析 -->
+    <div class="chart-container" id="chartWrapper" style="display: none;">
+        <div class="chart-title">支出结构分析</div>
+        <canvas id="chartCanvas"></canvas>
+    </div>
+
+    <!-- 历史明细 -->
+    <div class="history-list" id="historyList"></div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('flash_finance_records')) || [];
+        let myChart = null;
+
+        function init() {
+            renderList();
+            renderChart();
+        }
+
+        function addRecord() {
+            const amountInput = document.getElementById('amount');
+            const categoryInput = document.getElementById('category');
+            const amount = parseFloat(amountInput.value);
+
+            if (!amount || amount <= 0) {
+                alert('请输入有效的金额');
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now(),
+                amount: amount,
+                category: categoryInput.value,
+                date: new Date().toLocaleDateString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})
+            };
+
+            records.unshift(newRecord);
+            localStorage.setItem('flash_finance_records', JSON.stringify(records));
+            
+            amountInput.value = ''; // 清空输入框
+            amountInput.blur(); // 收起键盘
+            
+            init();
+        }
+
+        function renderList() {
+            const listContainer = document.getElementById('historyList');
+            let total = 0;
+            let html = '';
+
+            records.forEach(r => {
+                total += r.amount;
+                html += `
+                    <div class="history-item">
+                        <div class="item-left">
+                            <span class="item-tag">${r.category}</span>
+                            <span class="item-date">${r.date}</span>
+                        </div>
+                        <span class="item-amount">-￥${r.amount.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('totalExpense').innerText = `￥${total.toFixed(2)}`;
+            listContainer.innerHTML = html || '<p style="text-align:center;color:#8e8e93;padding:20px;">暂无记账数据</p>';
+        }
+
+        function renderChart() {
+            const chartWrapper = document.getElementById('chartWrapper');
+            if (records.length === 0) {
+                chartWrapper.style.display = 'none';
+                return;
+            }
+            chartWrapper.style.display = 'flex';
+
+            // 聚合分类数据
+            const categories = {};
+            records.forEach(r => {
+                categories[r.category] = (categories[r.category] || 0) + r.amount;
+            });
+
+            const labels = Object.keys(categories);
+            const data = Object.values(categories);
+            
+            // 莫兰迪色系应用
+            const colors = ['#ff9500', '#007aff', '#34c759', '#5856d6', '#ff2d55', '#af52de'];
+
+            if (myChart) myChart.destroy();
+
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } }
+                    }
+                }
+            });
+        }
+
+        // 初始化运行
+        init();
+    </script>
+</body>
+</html>
