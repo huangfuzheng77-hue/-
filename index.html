@@ -5,71 +5,121 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="闪记">
-    <title>闪记 - 极简记账</title>
-    <!-- 引入 🌲 饼图框架 -->
+    <meta name="apple-mobile-web-app-title" content="闪记 Pro">
+    <title>闪记 - 收支账本</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #34c759; --bg: #f2f2f7; --card: #ffffff; }
+        :root { --income-color: #34c759; --expense-color: #ff3b30; --bg: #f2f2f7; --card: #ffffff; }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: var(--bg); color: #000; padding: 20px 16px; padding-top: calc(20px + env(safe-area-inset-top)); }
-        .header { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; text-align: center; }
-        .balance-title { font-size: 14px; color: #8e8e93; margin-bottom: 4px; }
-        .balance-amount { font-size: 32px; font-weight: 700; color: #1c1c1e; }
-        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-        input, select { width: 100%; padding: 14px; border: none; background: var(--card); border-radius: 12px; font-size: 16px; outline: none; }
-        input:focus, select:focus { box-shadow: 0 0 0 2px var(--primary); }
-        .btn-submit { width: 100%; background: var(--primary); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(52,199,89,0.3); }
-        .chart-container { background: var(--card); padding: 20px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; }
-        .chart-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; width: 100%; text-align: left; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: var(--bg); color: #000; padding: 16px; padding-top: calc(12px + env(safe-area-inset-top)); }
+        
+        /* 顶栏资产看板 */
+        .header-card { background: var(--card); padding: 16px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .balance-box { text-align: center; margin-bottom: 12px; border-bottom: 1px solid #f2f2f7; padding-bottom: 8px; }
+        .balance-title { font-size: 13px; color: #8e8e93; }
+        .balance-amount { font-size: 28px; font-weight: 700; color: #1c1c1e; margin-top: 2px; }
+        .shouzhi-grid { display: grid; grid-template-columns: 1fr 1fr; text-align: center; }
+        .sz-title { font-size: 12px; color: #8e8e93; }
+        .sz-amount { font-size: 16px; font-weight: 600; margin-top: 2px; }
+        .inc { color: var(--income-color); }
+        .exp { color: var(--expense-color); }
+
+        /* 收支类型切换开关 */
+        .type-switcher { display: grid; grid-template-columns: 1fr 1fr; background: #e3e3e8; padding: 2px; border-radius: 9px; margin-bottom: 12px; }
+        .tab-btn { border: none; background: transparent; padding: 8px; font-size: 14px; font-weight: 600; border-radius: 7px; cursor: pointer; color: #8e8e93; transition: all 0.2s; }
+        .tab-btn.active.tab-exp { background: var(--expense-color); color: #fff; }
+        .tab-btn.active.tab-inc { background: var(--income-color); color: #fff; }
+
+        /* 表单输入 */
+        .grid-inputs { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 12px; }
+        input, select { width: 100%; padding: 12px; border: none; background: var(--card); border-radius: 10px; font-size: 15px; outline: none; }
+        .btn-submit { width: 100%; color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: background 0.2s; }
+        
+        /* 统计图表 */
+        .chart-container { background: var(--card); padding: 16px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; }
+        .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; width: 100%; text-align: left; }
+        #chartCanvas { max-width: 200px; max-height: 200px; }
+
+        /* 历史列表 */
         .history-list { background: var(--card); border-radius: 16px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f2f2f7; }
         .history-item:last-child { border: none; }
         .item-left { display: flex; flex-direction: column; }
-        .item-tag { font-size: 16px; font-weight: 500; }
-        .item-date { font-size: 12px; color: #8e8e93; margin-top: 2px; }
-        .item-amount { font-size: 16px; font-weight: 600; color: #ff3b30; }
-        #chartCanvas { max-width: 240px; max-height: 240px; }
+        .item-tag { font-size: 15px; font-weight: 500; }
+        .item-date { font-size: 11px; color: #8e8e93; margin-top: 2px; }
+        .item-amount { font-size: 15px; font-weight: 600; }
     </style>
 </head>
 <body>
 
-    <!-- 顶栏余额 -->
-    <div class="header">
-        <div class="balance-title">本月总支出 (元)</div>
-        <div class="balance-amount" id="totalExpense">￥0.00</div>
+    <div class="header-card">
+        <div class="balance-box">
+            <div class="balance-title">本月结余 (元)</div>
+            <div class="balance-amount" id="netBalance">￥0.00</div>
+        </div>
+        <div class="shouzhi-grid">
+            <div style="border-right: 1px solid #f2f2f7;">
+                <div class="sz-title">总收入</div>
+                <div class="sz-amount inc" id="totalIncome">￥0.00</div>
+            </div>
+            <div>
+                <div class="sz-title">总支出</div>
+                <div class="sz-amount exp" id="totalExpense">￥0.00</div>
+            </div>
+        </div>
     </div>
 
-    <!-- 记账表单 -->
+    <div class="type-switcher">
+        <button class="tab-btn active tab-exp" id="typeExpense" onclick="changeType('支出')">记支出</button>
+        <button class="tab-btn tab-inc" id="typeIncome" onclick="changeType('收入')">记收入</button>
+    </div>
+
     <div class="grid-inputs">
         <input type="number" id="amount" placeholder="输入金额 (￥)" step="0.01" inputmode="decimal">
-        <select id="category">
-            <option value="餐饮">🍔 餐饮</option>
-            <option value="交通">🚗 交通</option>
-            <option value="购物">🛍️ 购物</option>
-            <option value="娱乐">🎮 娱乐</option>
-            <option value="居家">🏠 居家</option>
-            <option value="其他">📦 其他</option>
-        </select>
+        <select id="category"></select>
     </div>
-    <button class="btn-submit" onclick="addRecord()">一键记账</button>
+    <button class="btn-submit" id="submitBtn" onclick="addRecord()">一键记账</button>
 
-    <!-- 饼图分析 -->
     <div class="chart-container" id="chartWrapper" style="display: none;">
-        <div class="chart-title">支出结构分析</div>
+        <div class="chart-title" id="chartTitle">支出结构分析</div>
         <canvas id="chartCanvas"></canvas>
     </div>
 
-    <!-- 历史明细 -->
     <div class="history-list" id="historyList"></div>
 
     <script>
-        let records = JSON.parse(localStorage.getItem('flash_finance_records')) || [];
+        let currentType = '支出'; // 默认支出模式
+        let records = JSON.parse(localStorage.getItem('flash_finance_records_v2')) || [];
         let myChart = null;
 
-        function init() {
-            renderList();
+        // 收支各自的分类
+        const categories = {
+            '支出': ['🍔 餐饮', '🚗 交通', '🛍️ 购物', '🎮 娱乐', '🏠 居家', '📦 其他'],
+            '收入': ['💰 工资', '📈 投资', '📱 兼职', '🧧 红包', '♻️ 其他']
+        };
+
+        function changeType(type) {
+            currentType = type;
+            const btnExp = document.getElementById('typeExpense');
+            const btnInc = document.getElementById('typeIncome');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if(type === '支出') {
+                btnExp.classList.add('active');
+                btnInc.classList.remove('active');
+                submitBtn.style.background = 'var(--expense-color)';
+            } else {
+                btnInc.classList.add('active');
+                btnExp.classList.remove('active');
+                submitBtn.style.background = 'var(--income-color)';
+            }
+            updateCategorySelect();
             renderChart();
+        }
+
+        function updateCategorySelect() {
+            const select = document.getElementById('category');
+            select.innerHTML = categories[currentType].map(c => `<option value="${c}">${c}</option>`).join('');
         }
 
         function addRecord() {
@@ -84,61 +134,73 @@
 
             const newRecord = {
                 id: Date.now(),
+                type: currentType,
                 amount: amount,
                 category: categoryInput.value,
                 date: new Date().toLocaleDateString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'})
             };
 
             records.unshift(newRecord);
-            localStorage.setItem('flash_finance_records', JSON.stringify(records));
+            localStorage.setItem('flash_finance_records_v2', JSON.stringify(records));
             
-            amountInput.value = ''; // 清空输入框
-            amountInput.blur(); // 收起键盘
+            amountInput.value = '';
+            amountInput.blur();
             
             init();
         }
 
+        function init() {
+            updateCategorySelect();
+            changeType(currentType);
+            renderList();
+            renderChart();
+        }
+
         function renderList() {
             const listContainer = document.getElementById('historyList');
-            let total = 0;
+            let totalInc = 0;
+            let totalExp = 0;
             let html = '';
 
             records.forEach(r => {
-                total += r.amount;
+                const isInc = r.type === '收入';
+                if(isInc) totalInc += r.amount; else totalExp += r.amount;
+                
                 html += `
                     <div class="history-item">
                         <div class="item-left">
                             <span class="item-tag">${r.category}</span>
                             <span class="item-date">${r.date}</span>
                         </div>
-                        <span class="item-amount">-￥${r.amount.toFixed(2)}</span>
+                        <span class="item-amount" style="color: ${isInc ? 'var(--income-color)' : 'var(--expense-color)'}">
+                            ${isInc ? '+' : '-'}￥${r.amount.toFixed(2)}
+                        </span>
                     </div>
                 `;
             });
 
-            document.getElementById('totalExpense').innerText = `￥${total.toFixed(2)}`;
+            document.getElementById('totalIncome').innerText = `￥${totalInc.toFixed(2)}`;
+            document.getElementById('totalExpense').innerText = `￥${totalExp.toFixed(2)}`;
+            document.getElementById('netBalance').innerText = `￥${(totalInc - totalExp).toFixed(2)}`;
             listContainer.innerHTML = html || '<p style="text-align:center;color:#8e8e93;padding:20px;">暂无记账数据</p>';
         }
 
         function renderChart() {
             const chartWrapper = document.getElementById('chartWrapper');
-            if (records.length === 0) {
+            // 只过滤当前选择类型的账目生成图表
+            const filteredRecords = records.filter(r => r.type === currentType);
+            
+            if (filteredRecords.length === 0) {
                 chartWrapper.style.display = 'none';
                 return;
             }
             chartWrapper.style.display = 'flex';
+            document.getElementById('chartTitle').innerText = currentType === '支出' ? '支出结构分析' : '收入结构分析';
 
-            // 聚合分类数据
-            const categories = {};
-            records.forEach(r => {
-                categories[r.category] = (categories[r.category] || 0) + r.amount;
+            const chartDataObj = {};
+            filteredRecords.forEach(r => {
+                chartDataObj[r.category] = (chartDataObj[r.category] || 0) + r.amount;
             });
-
-            const labels = Object.keys(categories);
-            const data = Object.values(categories);
-            
-            // 莫兰迪色系应用
-            const colors = ['#ff9500', '#007aff', '#34c759', '#5856d6', '#ff2d55', '#af52de'];
 
             if (myChart) myChart.destroy();
 
@@ -146,22 +208,21 @@
             myChart = new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: labels,
+                    labels: Object.keys(chartDataObj),
                     datasets: [{
-                        data: data,
-                        backgroundColor: colors.slice(0, labels.length),
+                        data: Object.values(chartDataObj),
+                        backgroundColor: ['#ff9500', '#007aff', '#34c759', '#5856d6', '#ff2d55', '#af52de', '#4cd964'],
                         borderWidth: 0
                     }]
                 },
                 options: {
                     plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } }
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }
                     }
                 }
             });
         }
 
-        // 初始化运行
         init();
     </script>
 </body>
